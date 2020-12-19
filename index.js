@@ -42,6 +42,40 @@ const client = new Client({ config });
 client.setEnvironment("TEST");
 
 const checkout = new CheckoutAPI(client);
+const paymentDataStore = {};
+
+// Handle Redirect Pages
+app.all("/api/handleShopperRedirect", async (req, res) => {
+  const payload = {};
+  payload["details"] = req.method === "GET" ? req.query : req.body;
+
+  const orderRef = req.query.orderRef;
+  payload["paymentData"] = paymentDataStore[orderRef];
+  delete paymentDataStore[orderRef];
+
+  try {
+    const response = await checkout.paymentsDetails(payload);
+    switch (response.resultCode) {
+      case "Authorised":
+        res.redirect("/success");
+        break;
+      case "Pending":
+      case "Received":
+        res.redirect("/pending");
+        break;
+      case "Refused":
+        res.redirect("/failed");
+        break;
+      default:
+        res.redirect("/error");
+        break;
+    }
+  } catch (err) {
+    console.error(`Error: ${err.message}, error code: ${err.errorCode}`);
+    res.redirect("/error");
+  }
+});
+
 
 /* 
    ----- API ROUTES ------- 
@@ -128,38 +162,6 @@ app.get("/success", (req, res) => res.render("success"));
 app.get("/pending", (req, res) => res.render("pending"));
 app.get("/error", (req, res) => res.render("error"));
 app.get("/failed", (req, res) => res.render("failed"));
-
-// Handle Redirect Pages
-app.all("/api/handleShopperRedirect", async (req, res) => {
-  const payload = {};
-  payload["details"] = req.method === "GET" ? req.query : req.body;
-
-  const orderRef = req.query.orderRef;
-  payload["paymentData"] = paymentDataStore[orderRef];
-  delete paymentDataStore[orderRef];
-
-  try {
-    const response = await checkout.paymentsDetails(payload);
-    switch (response.resultCode) {
-      case "Authorised":
-        res.redirect("/success");
-        break;
-      case "Pending":
-      case "Received":
-        res.redirect("/pending");
-        break;
-      case "Refused":
-        res.redirect("/failed");
-        break;
-      default:
-        res.redirect("/error");
-        break;
-    }
-  } catch (err) {
-    console.error(`Error: ${err.message}, error code: ${err.errorCode}`);
-    res.redirect("/error");
-  }
-});
 
 // Start Server
 const PORT = process.env.PORT || 8080;

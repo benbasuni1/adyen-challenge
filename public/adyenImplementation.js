@@ -1,6 +1,7 @@
 const paymentMethodsResponse = JSON.parse(
   document.getElementById("paymentMethodsResponse").innerHTML
 );
+
 const clientKey = document.getElementById("clientKey").innerHTML;
 
 const configuration = {
@@ -36,8 +37,8 @@ async function callServer(url, data) {
   }
 }
 
-// Handles responses sent from your server to the client
 function handleServerResponse(res, component) {
+  console.log('handle server response');
   if (res.action) {
     component.handleAction(res.action);
   } else {
@@ -58,9 +59,8 @@ function handleServerResponse(res, component) {
   }
 }
 
-// Event handlers called when the shopper selects the pay button,
-// or when additional information is required to complete the payment
 async function handleSubmission(state, component, url) {
+  console.log('handle submission');
   try {
     const response = await callServer(url, state.data);
     return handleServerResponse(response, component);
