@@ -9,11 +9,14 @@ const app = express();
 
 /* 
    ----- SETUP ------- 
-   1. Express Middleware
-   2. Handlebars
-   3. Adyen Configuration
-   4. .Env 
+   1. .Env 
+   2. Express Middleware
+   3. Handlebars
+   4. Adyen Configuration
 */ 
+
+// .Env 
+dotenv.config({ path: "./.env"});
 
 // Express Middleware
 app.use(morgan("dev"));
@@ -22,8 +25,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, "/public")));
 
 // Handlebars
-app.engine(
-  "handlebars",
+app.engine("handlebars",
   hbs({
     defaultLayout: "main",
     layoutsDir: __dirname + "/views/layouts",
@@ -40,9 +42,6 @@ const client = new Client({ config });
 client.setEnvironment("TEST");
 
 const checkout = new CheckoutAPI(client);
-
-// .Env 
-dotenv.config({ path: "./.env"});
 
 /* 
    ----- API ROUTES ------- 
