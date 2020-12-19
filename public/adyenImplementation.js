@@ -1,7 +1,4 @@
-const paymentMethodsResponse = JSON.parse(
-  document.getElementById("paymentMethodsResponse").innerHTML
-);
-
+const paymentMethodsResponse = JSON.parse(document.getElementById("paymentMethodsResponse").innerHTML);
 const clientKey = document.getElementById("clientKey").innerHTML;
 
 const configuration = {
@@ -27,9 +24,7 @@ async function callServer(url, data) {
     const response = await fetch(url, {
       method: "POST",
       body: JSON.stringify(data),
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
     });
     return response.json();
   } catch (error) {
@@ -38,7 +33,6 @@ async function callServer(url, data) {
 }
 
 function handleServerResponse(res, component) {
-  console.log('handle server response');
   if (res.action) {
     component.handleAction(res.action);
   } else {
@@ -60,7 +54,6 @@ function handleServerResponse(res, component) {
 }
 
 async function handleSubmission(state, component, url) {
-  console.log('handle submission');
   try {
     const response = await callServer(url, state.data);
     return handleServerResponse(response, component);

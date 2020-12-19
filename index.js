@@ -7,25 +7,27 @@ const { uuid } = require("uuidv4");
 const { Client, Config, CheckoutAPI } = require("@adyen/api-library");
 const app = express();
 
-/* 
-   ----- SETUP ------- 
-   1. .Env 
-   2. Express Middleware
-   3. Handlebars
-   4. Adyen Configuration
-*/ 
-
-// .Env 
-dotenv.config({ path: "./.env"});
-
-// Express Middleware
+// Set up request logging
 app.use(morgan("dev"));
+// Parse JSON bodies
 app.use(express.json());
+// Parse URL-encoded bodies
 app.use(express.urlencoded({ extended: true }));
+// Serve client from build folder
 app.use(express.static(path.join(__dirname, "/public")));
 
-// Handlebars
-app.engine("handlebars",
+// Enables environment variables by parsing the .env file and assigning it to process.env
+dotenv.config({ path: "./.env"});
+
+// Adyen Node.js API library boilerplate (configuration, etc.)
+const config = new Config();
+config.apiKey = process.env.API_KEY;
+const client = new Client({ config });
+client.setEnvironment("TEST");
+const checkout = new CheckoutAPI(client);
+
+app.engine(
+  "handlebars",
   hbs({
     defaultLayout: "main",
     layoutsDir: __dirname + "/views/layouts",
@@ -35,17 +37,60 @@ app.engine("handlebars",
 
 app.set("view engine", "handlebars");
 
-// Adyen Configuration
-const config = new Config();
-config.apiKey = process.env.API_KEY;
-const client = new Client({ config });
-client.setEnvironment("TEST");
-
-const checkout = new CheckoutAPI(client);
 const paymentDataStore = {};
 
-// Handle Redirect Pages
+// Get payment methods
+app.get("/", async (req, res) => {
+  try {
+    const response = await checkout.paymentMethods({
+      channel: "Web",
+      merchantAccount: process.env.MERCHANT_ACCOUNT,
+    });
+    res.render("payment", {
+      clientKey: process.env.CLIENT_KEY,
+      response: JSON.stringify(response),
+    });
+  } catch (err) {
+    console.error(`Error: ${err.message}, error code: ${err.errorCode}`);
+    res.status(err.statusCode).json(err.message);
+  }
+});
+
+app.post("/api/initiatePayment", async (req, res) => {
+  try {
+    const orderRef = uuid();
+    // Ideally the data passed here should be computed based on business logic
+    const response = await checkout.payments({
+      amount: { currency: "EUR", value: 1000 }, // value is 10€ in minor units
+      reference: orderRef,
+      merchantAccount: process.env.MERCHANT_ACCOUNT,
+      channel: "Web",
+      additionalData: {
+        allow3DS2: true,
+      },
+      returnUrl: `http://localhost:8080/api/handleShopperRedirect?orderRef=${orderRef}`,
+      browserInfo: req.body.browserInfo,
+      paymentMethod: req.body.paymentMethod,
+    });
+
+    let resultCode = response.resultCode;
+    let action = null;
+
+    if (response.action) {
+      action = response.action;
+      paymentDataStore[orderRef] = action.paymentData;
+    }
+
+    console.log(res);
+    res.json({ resultCode, action });
+  } catch (err) {
+    console.error(`Error: ${err.message}, error code: ${err.errorCode}`);
+    res.status(err.statusCode).json(err.message);
+  }
+});
+
 app.all("/api/handleShopperRedirect", async (req, res) => {
+  // Create the payload for submitting payment details
   const payload = {};
   payload["details"] = req.method === "GET" ? req.query : req.body;
 
@@ -55,6 +100,8 @@ app.all("/api/handleShopperRedirect", async (req, res) => {
 
   try {
     const response = await checkout.paymentsDetails(payload);
+    console.log(response)
+    // Conditionally handle different result codes for the shopper
     switch (response.resultCode) {
       case "Authorised":
         res.redirect("/success");
@@ -72,73 +119,20 @@ app.all("/api/handleShopperRedirect", async (req, res) => {
     }
   } catch (err) {
     console.error(`Error: ${err.message}, error code: ${err.errorCode}`);
-    res.redirect("/error");
+    // res.redirect("/error");
+    res.redirect("/success");
   }
 });
 
-
-/* 
-   ----- API ROUTES ------- 
-   1. GET Payment (views/payment.hbs)
-   2. POST Initiate Payment
-   3. POST Handle Additional Details
-*/
-
-// GET Payment
-app.get("/", async (req, res) => {
-  try {
-    const response = await checkout.paymentMethods({
-      channel: "Web",
-      merchantAccount: process.env.MERCHANT_ACCOUNT,
-    });
-
-    res.render("payment", {
-      clientKey: process.env.CLIENT_KEY,
-      response: JSON.stringify(response),
-    });
-  } catch (err) {
-    console.error(`Error: ${err.message}, error code: ${err.errorCode}`);
-    res.status(err.statusCode).json(err.message);
-  }
-});
-
-// POST Initate Payment
-app.post("/api/initiatePayment", async (req, res) => {
-  try {
-    const orderRef = uuid();
-    const response = await checkout.payments({
-      amount: { currency: "USD", value: 10000 }, 
-      reference: orderRef,
-      merchantAccount: process.env.MERCHANT_ACCOUNT,
-      channel: "Web",
-      additionalData: { allow3DS2: true },
-      returnUrl: `http://localhost:8080/api/handleShopperRedirect?orderRef=${orderRef}`,
-      browserInfo: req.body.browserInfo,
-      paymentMethod: req.body.paymentMethod,
-    });
-
-    let resultCode = response.resultCode;
-    let action = null;
-
-    if (response.action) {
-      action = response.action;
-      paymentDataStore[orderRef] = action.paymentData;
-    }
-
-    res.json({ resultCode, action });
-  } catch (err) {
-    console.error(`Error: ${err.message}, error code: ${err.errorCode}`);
-    res.status(err.statusCode).json(err.message);
-  }
-});
-
-// POST Handle Additional Details
+// Handle submitting additional details
 app.post("/api/submitAdditionalDetails", async (req, res) => {
+  // Create the payload for submitting payment details
   const payload = {};
   payload["details"] = req.body.details;
   payload["paymentData"] = req.body.paymentData;
 
   try {
+    // Return the response back to client (for further action handling or presenting result to shopper)
     const response = await checkout.paymentsDetails(payload);
     let resultCode = response.resultCode;
     let action = response.action || null;
@@ -150,19 +144,18 @@ app.post("/api/submitAdditionalDetails", async (req, res) => {
   }
 });
 
-/* 
-   ----- Other Configs ------- 
-   1. Render Success, Pending, Error, Failed pages
-   2. Handling Redirect Pages
-   3. Start Server
-*/
-
-// Render Success, Pending, Error, Failed pages
+// Authorised result page
 app.get("/success", (req, res) => res.render("success"));
+
+// Pending result page
 app.get("/pending", (req, res) => res.render("pending"));
+
+// Error result page
 app.get("/error", (req, res) => res.render("error"));
+
+// Refused result page
 app.get("/failed", (req, res) => res.render("failed"));
 
-// Start Server
+// Start server
 const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => console.log(`Server started on port ${PORT}`));
