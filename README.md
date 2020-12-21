@@ -38,3 +38,21 @@ Invoked in `payment.handlebars`
     * handleSubmission(state, component, url)
 
 ## Frontend (views/*)
+
+### ```layout/main.handlebars```
+* main page that imports Adyen CDNs and body that gets imported by other handlebar files
+
+### ```partials/customer-form.handlebars```
+* page that handles the customer-form (left-hand side of main page). By default, everything is read-only for demo purposes.
+
+### ```payment.handlebars```
+* Page that imports adyenImplementation.js and handles redirects, submissions, etc (look at `adyenImplementation.js` for more  information.
+
+### * Redirect pages
+* ```success.handlebars```
+* ```error.handlebars```
+* ```pending.handlebars```
+* ```failed.handlebars```
+
+## Static Data
+* CSS and Images should also be mentioned in `public/` folder
