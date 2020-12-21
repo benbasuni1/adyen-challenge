@@ -1,4 +1,6 @@
-## Adyen Challenge - Ben Basuni 12/19/20
+# Adyen Challenge - Ben Basuni 12/19/20
+
+## Backend (index.js and adyenImplementation.js)
 
 ### ```Index.js```
 File that will handle our apps: **configuration, basic API routes, rendering views, and starting the server**
@@ -35,4 +37,4 @@ Invoked in `payment.handlebars`
     * handleServerResponse(res, component)
     * handleSubmission(state, component, url)
 
-  
+## Frontend (views/*)
