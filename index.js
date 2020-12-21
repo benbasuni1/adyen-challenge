@@ -7,27 +7,22 @@ const { uuid } = require("uuidv4");
 const { Client, Config, CheckoutAPI } = require("@adyen/api-library");
 const app = express();
 
-// Set up request logging
+// Express Middleware and .env Config
 app.use(morgan("dev"));
-// Parse JSON bodies
 app.use(express.json());
-// Parse URL-encoded bodies
 app.use(express.urlencoded({ extended: true }));
-// Serve client from build folder
 app.use(express.static(path.join(__dirname, "/public")));
-
-// Enables environment variables by parsing the .env file and assigning it to process.env
 dotenv.config({ path: "./.env"});
 
-// Adyen Node.js API library boilerplate (configuration, etc.)
+// Adyen Boilerplate Config
 const config = new Config();
 config.apiKey = process.env.API_KEY;
 const client = new Client({ config });
 client.setEnvironment("TEST");
 const checkout = new CheckoutAPI(client);
 
-app.engine(
-  "handlebars",
+// Handlebars Config
+app.engine("handlebars",
   hbs({
     defaultLayout: "main",
     layoutsDir: __dirname + "/views/layouts",
@@ -36,10 +31,9 @@ app.engine(
 );
 
 app.set("view engine", "handlebars");
-
 const paymentDataStore = {};
 
-// Get payment methods
+// GET Payment methods
 app.get("/", async (req, res) => {
   try {
     const response = await checkout.paymentMethods({
@@ -56,18 +50,16 @@ app.get("/", async (req, res) => {
   }
 });
 
+// POST Initiate Payment
 app.post("/api/initiatePayment", async (req, res) => {
   try {
     const orderRef = uuid();
-    // Ideally the data passed here should be computed based on business logic
     const response = await checkout.payments({
-      amount: { currency: "EUR", value: 1000 }, // value is 10€ in minor units
+      amount: { currency: "EUR", value: 1000 },
       reference: orderRef,
       merchantAccount: process.env.MERCHANT_ACCOUNT,
       channel: "Web",
-      additionalData: {
-        allow3DS2: true,
-      },
+      additionalData: { allow3DS2: true, },
       returnUrl: `http://localhost:8080/api/handleShopperRedirect?orderRef=${orderRef}`,
       browserInfo: req.body.browserInfo,
       paymentMethod: req.body.paymentMethod,
@@ -89,8 +81,8 @@ app.post("/api/initiatePayment", async (req, res) => {
   }
 });
 
+// Handle Redirects
 app.all("/api/handleShopperRedirect", async (req, res) => {
-  // Create the payload for submitting payment details
   const payload = {};
   payload["details"] = req.method === "GET" ? req.query : req.body;
 
@@ -100,8 +92,6 @@ app.all("/api/handleShopperRedirect", async (req, res) => {
 
   try {
     const response = await checkout.paymentsDetails(payload);
-    console.log(response)
-    // Conditionally handle different result codes for the shopper
     switch (response.resultCode) {
       case "Authorised":
         res.redirect("/success");
@@ -119,20 +109,17 @@ app.all("/api/handleShopperRedirect", async (req, res) => {
     }
   } catch (err) {
     console.error(`Error: ${err.message}, error code: ${err.errorCode}`);
-    // res.redirect("/error");
     res.redirect("/success");
   }
 });
 
 // Handle submitting additional details
 app.post("/api/submitAdditionalDetails", async (req, res) => {
-  // Create the payload for submitting payment details
   const payload = {};
   payload["details"] = req.body.details;
   payload["paymentData"] = req.body.paymentData;
 
   try {
-    // Return the response back to client (for further action handling or presenting result to shopper)
     const response = await checkout.paymentsDetails(payload);
     let resultCode = response.resultCode;
     let action = response.action || null;
@@ -144,16 +131,10 @@ app.post("/api/submitAdditionalDetails", async (req, res) => {
   }
 });
 
-// Authorised result page
+// Render correct views on API
 app.get("/success", (req, res) => res.render("success"));
-
-// Pending result page
 app.get("/pending", (req, res) => res.render("pending"));
-
-// Error result page
 app.get("/error", (req, res) => res.render("error"));
-
-// Refused result page
 app.get("/failed", (req, res) => res.render("failed"));
 
 // Start server
