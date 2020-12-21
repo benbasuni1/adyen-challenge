@@ -7,9 +7,7 @@ const configuration = {
   locale: "en_US",
   environment: "test",
   paymentMethodsConfiguration: {
-    card: {
-      hasHolderName: true,
-    },
+    card: { hasHolderName: true },
   },
   onSubmit: (state, component) => {
     handleSubmission(state, component, "/api/initiatePayment");
@@ -63,7 +61,4 @@ async function handleSubmission(state, component, url) {
 }
 
 const checkout = new AdyenCheckout(configuration);
-
-const integration = checkout
-  .create("dropin")
-  .mount(document.getElementById("dropin"));
+const integration = checkout.create("dropin").mount(document.getElementById("dropin"));
