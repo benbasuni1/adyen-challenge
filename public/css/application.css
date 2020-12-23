@@ -4,7 +4,8 @@ html,
 body {
   width: 100%;
   margin: 0;
-  font-family: "Fakt", sans-serif, Helvetica, Arial;
+  font-family: Helvetica, sans-serif, Arial;
+  background-color: aliceblue;
 }
 
 *,
@@ -27,7 +28,7 @@ a:hover {
 }
 
 #header {
-  background: #fff;
+  background: skyblue;
   border-bottom: 1px solid #e6e9eb;
   height: 44px;
   left: 0;

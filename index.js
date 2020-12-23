@@ -60,7 +60,8 @@ app.post("/api/initiatePayment", async (req, res) => {
       merchantAccount: process.env.MERCHANT_ACCOUNT,
       channel: "Web",
       additionalData: { allow3DS2: true, },
-      returnUrl: `http://localhost:8080/api/handleShopperRedirect?orderRef=${orderRef}`,
+      returnUrl: `http://https://adyen-challenge.herokuapp.com/api/handleShopperRedirect?orderRef=${orderRef}`,
+      // returnUrl: `http://https://localhost:8080/api/handleShopperRedirect?orderRef=${orderRef}`,
       browserInfo: req.body.browserInfo,
       paymentMethod: req.body.paymentMethod,
     });
